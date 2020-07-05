@@ -31,6 +31,8 @@ class MyGitMap(gitmap.GitMap):
         # logging
         print('committed', old_commit, '=>', new_commit)
 
+    remove_empty_commits = True
+
 
 if __name__ == '__main__':
     # set source git repository

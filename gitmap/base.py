@@ -19,6 +19,8 @@ class GitMap(object):
     def progress(self, old_commit, new_commit):
         pass
 
+    remove_empty_commits = False
+
     def run(self, src_path, dst_path):
         src = git.Repo(src_path)
         dst = git.Repo.init(dst_path)
@@ -82,7 +84,16 @@ class GitMap(object):
             author, committer, author_date, commit_date = self.commit_map(commit, commit.author, commit.committer, commit.authored_date, commit.committed_date)
             author_date = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(author_date))
             commit_date = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(commit_date))
-            dst_commit = index.commit(commit.message, parent_commits=parent_commits, author=author, committer=committer, author_date=author_date, commit_date=commit_date)
+
+            skip_flag = False
+            if self.remove_empty_commits:
+                for parent in parent_commits:
+                    if not index.diff(parent):
+                        dst_commit = parent
+                        skip_flag = True
+                        break
+            if not skip_flag:
+                dst_commit = index.commit(commit.message, parent_commits=parent_commits, author=author, committer=committer, author_date=author_date, commit_date=commit_date)
             commit_binsha_map[commit.binsha] = dst_commit
             self.progress(commit, dst_commit)
 
