@@ -21,11 +21,11 @@ class MyGitMap(gitmap.GitMap):
             (b'__pycache__\njittor.egg-info\n', 0o100644, '.gitignore'),
         ]
 
-    def commit_map(self, old_commit, author, committer, author_date, commit_date):
+    def commit_map(self, old_commit, message, author, committer, author_date, commit_date):
         # keep author, update committer
         committer = git.Actor('Tailing Yuan', 'yuantailing@gmail.com')
         commit_date = time.time()
-        return author, committer, author_date, commit_date
+        return message, author, committer, author_date, commit_date
 
     def progress(self, old_commit, new_commit):
         # logging

@@ -13,7 +13,7 @@ class GitMap(object):
     def commit_add(self, old_commit):
         return []
 
-    def commit_map(self, old_commit, author, committer, author_date, commit_date):
+    def commit_map(self, old_commit, message, author, committer, author_date, commit_date):
         raise NotImplementedError
 
     def progress(self, old_commit, new_commit):
@@ -81,7 +81,7 @@ class GitMap(object):
                     index.add([git.Blob(dst, *t) for t in to_add[i:i + 128]])
 
             parent_commits=[commit_binsha_map[parent.binsha] for parent in commit.parents]
-            author, committer, author_date, commit_date = self.commit_map(commit, commit.author, commit.committer, commit.authored_date, commit.committed_date)
+            message, author, committer, author_date, commit_date = self.commit_map(commit, commit.message, commit.author, commit.committer, commit.authored_date, commit.committed_date)
             author_date = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(author_date))
             commit_date = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(commit_date))
 
@@ -93,7 +93,7 @@ class GitMap(object):
                         skip_flag = True
                         break
             if not skip_flag:
-                dst_commit = index.commit(commit.message, parent_commits=parent_commits, author=author, committer=committer, author_date=author_date, commit_date=commit_date)
+                dst_commit = index.commit(message, parent_commits=parent_commits, author=author, committer=committer, author_date=author_date, commit_date=commit_date)
             commit_binsha_map[commit.binsha] = dst_commit
             self.progress(commit, dst_commit)
 
