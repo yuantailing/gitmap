@@ -42,7 +42,8 @@ class GitMap(object):
                         children[c.binsha].add(commit)
 
         blob_map_cache = dict()
-        commit_binsha_map = dict()
+        commit_binsha_map = dict() # old binsha => new binsha
+        height = dict() # new binsha => height
         while threads:
             commit = threads.pop()
             index = dst.index
@@ -67,15 +68,14 @@ class GitMap(object):
                 istream = dst.odb.store(IStream('blob', len(data), io.BytesIO(data)))
                 blobs.add((istream.binsha, mode, path))
 
+            # remove/add only the differene
             old_blobs = {(blob[1].binsha, blob[1].mode, blob[1].path) for blob in index.iter_blobs()}
             to_remove = list(old_blobs - blobs)
             to_add = list(blobs - old_blobs)
-            if to_remove:
-                for i in range(0, len(to_remove), 128):
-                    index.remove([git.Blob(dst, *t) for t in to_remove[i:i + 128]])
-            if to_add:
-                for i in range(0, len(to_add), 128):
-                    index.add([git.Blob(dst, *t) for t in to_add[i:i + 128]])
+            for i in range(0, len(to_remove), 128):
+                index.remove([git.Blob(dst, *t) for t in to_remove[i:i + 128]])
+            for i in range(0, len(to_add), 128):
+                index.add([git.Blob(dst, *t) for t in to_add[i:i + 128]])
 
             parent_commits=[commit_binsha_map[parent.binsha] for parent in commit.parents]
             message, author, authored_date, author_tz_offset, committer, committed_date, committer_tz_offset = self.commit_map(commit, commit.message, commit.author, commit.authored_date, commit.author_tz_offset, commit.committer, commit.committed_date, commit.committer_tz_offset)
@@ -84,14 +84,36 @@ class GitMap(object):
 
             skip_flag = False
             if self.remove_empty_commits:
+                # detect grandparents
+                min_height = min(height[parent.binsha] for parent in parent_commits) if parent_commits else 0
+                st = parent_commits[:]
+                grandparents = set()
+                while st:
+                    current = st.pop()
+                    for grandparent in current.parents:
+                        if grandparent.binsha not in grandparents:
+                            grandparents.add(grandparent.binsha)
+                            if height[grandparent.binsha] > min_height:
+                                st.append(grandparent)
+                parent_commits = [parent for parent in parent_commits if parent.binsha not in grandparents]
+
+                # detect same parents
+                for i in range(len(parent_commits) - 1, -1, -1):
+                    if parent_commits[i].binsha in set(parent.binsha for parent in parent_commits[:i]):
+                        parent_commits.pop(i)
+
+                # skip empty commits
                 for parent in parent_commits:
                     if not index.diff(parent):
                         dst_commit = parent
                         skip_flag = True
                         break
+
             if not skip_flag:
                 dst_commit = index.commit(message, parent_commits=parent_commits, author=author, committer=committer, author_date=author_date, commit_date=commit_date)
             commit_binsha_map[commit.binsha] = dst_commit
+            height[dst_commit.binsha] = max(height[parent.binsha] for parent in dst_commit.parents) + 1 if dst_commit.parents else 0
+
             self.progress(commit, dst_commit)
 
             for child in children[commit.binsha]:

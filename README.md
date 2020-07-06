@@ -3,7 +3,7 @@ Map git commits to new commits, preserving history.
 
 ## Usage
 
-1. Install dependencies, `pip install -r requirements.txt`. (python2 is currently not supported.)
+1. Install dependencies, `pip install -r requirements.txt`. (python2 is currently unsupported.)
 1. Inherit the class `gitmap.GitMap`, and override `blob_map` and `commit_map`. The `blob_map` function maps a source path to a destination path, etc. The `commit_map` function maps a commit message to a new message, etc.
 1. Call `run(src_repo_path, dst_repo_path)`. All heads will be mapped.
 1. Set `remove_empty_commits` to `True` if you want to remove empty commits. (A non-empty commit may be mapped to an empty commit, depending on your map function.)
