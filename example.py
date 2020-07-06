@@ -23,7 +23,7 @@ class MyGitMap(gitmap.GitMap):
 
     def commit_map(self, old_commit, message, author, authored_date, author_tz_offset, committer, committed_date, committer_tz_offset):
         # keep author, update committer
-        committer = git.Actor('Tailing Yuan', 'yuantailing@gmail.com')
+        committer = git.Actor('The committer', 'committer@example.com')
         committed_date = time.time()
         return message, author, authored_date, author_tz_offset, committer, committed_date, committer_tz_offset
 
@@ -40,6 +40,7 @@ if __name__ == '__main__':
     try:
         repo = git.Repo('../jittor')
     except git.exc.NoSuchPathError:
+        print('cloning', url)
         repo = git.Repo.clone_from(url, '../jittor', branch='master')
     if 'origin' not in repo.remotes:
         repo.create_remote('origin', url=url)
