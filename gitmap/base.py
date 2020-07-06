@@ -8,13 +8,13 @@ from gitdb.base import IStream
 
 class GitMap(object):
     def blob_map(self, data_stream, mode, path):
-        raise NotImplementedError
+        return data_stream.read(), mode, path
 
     def commit_add(self, old_commit):
         return []
 
-    def commit_map(self, old_commit, message, author, committer, author_date, commit_date):
-        raise NotImplementedError
+    def commit_map(self, old_commit, message, author, authored_date, author_tz_offset, committer, committed_date, committer_tz_offset):
+        return message, author, authored_date, author_tz_offset, committer, committed_date, committer_tz_offset
 
     def progress(self, old_commit, new_commit):
         pass
@@ -48,26 +48,23 @@ class GitMap(object):
             index = dst.index
             blobs = set()
             for item in commit.tree.traverse():
+                key = item.binsha, item.mode, item.path
                 if item.type == 'blob':
-                    if item.binsha in blob_map_cache:
-                        if blob_map_cache[item.binsha] is not None:
-                            binsha, mode, path = blob_map_cache[item.binsha]
-                            blob = git.Blob(dst, binsha, mode, path)
-                            blobs.add((binsha, mode, path))
+                    if key in blob_map_cache:
+                        if blob_map_cache[key] is not None:
+                            value = blob_map_cache[key]
+                            blobs.add(value)
                     else:
                         res = self.blob_map(item.data_stream, item.mode, item.path)
                         if res is not None:
                             data, mode, path = res
                             istream = dst.odb.store(IStream('blob', len(data), io.BytesIO(data)))
-                            blob = git.Blob(dst, istream.binsha, mode, path)
-                            blobs.add((istream.binsha, mode, path))
-                            blob_map_cache[item.binsha] = (istream.binsha, mode, path)
+                            value = blob_map_cache[key] = istream.binsha, mode, path
+                            blobs.add(value)
                         else:
-                            blob_map_cache[item.binsha] = None
-
+                            blob_map_cache[key] = None
             for data, mode, path in self.commit_add(commit):
                 istream = dst.odb.store(IStream('blob', len(data), io.BytesIO(data)))
-                blob = git.Blob(dst, istream.binsha, mode, path)
                 blobs.add((istream.binsha, mode, path))
 
             old_blobs = {(blob[1].binsha, blob[1].mode, blob[1].path) for blob in index.iter_blobs()}
@@ -81,9 +78,9 @@ class GitMap(object):
                     index.add([git.Blob(dst, *t) for t in to_add[i:i + 128]])
 
             parent_commits=[commit_binsha_map[parent.binsha] for parent in commit.parents]
-            message, author, committer, author_date, commit_date = self.commit_map(commit, commit.message, commit.author, commit.committer, commit.authored_date, commit.committed_date)
-            author_date = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(author_date))
-            commit_date = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(commit_date))
+            message, author, authored_date, author_tz_offset, committer, committed_date, committer_tz_offset = self.commit_map(commit, commit.message, commit.author, commit.authored_date, commit.author_tz_offset, commit.committer, commit.committed_date, commit.committer_tz_offset)
+            author_date = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(authored_date)) + ' ' + git.objects.util.altz_to_utctz_str(author_tz_offset)
+            commit_date = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(committed_date)) + ' ' + git.objects.util.altz_to_utctz_str(committer_tz_offset)
 
             skip_flag = False
             if self.remove_empty_commits:

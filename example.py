@@ -10,7 +10,7 @@ class MyGitMap(gitmap.GitMap):
             return data_stream.read(), mode, path
         # flatten python dir
         if path.startswith('python/'):
-            return data_stream.read(), mode, path.lstrip('python/')
+            return data_stream.read(), mode, path[len('python/'):]
         # delete other files
         else:
             return None
@@ -21,11 +21,11 @@ class MyGitMap(gitmap.GitMap):
             (b'__pycache__\njittor.egg-info\n', 0o100644, '.gitignore'),
         ]
 
-    def commit_map(self, old_commit, message, author, committer, author_date, commit_date):
+    def commit_map(self, old_commit, message, author, authored_date, author_tz_offset, committer, committed_date, committer_tz_offset):
         # keep author, update committer
         committer = git.Actor('Tailing Yuan', 'yuantailing@gmail.com')
-        commit_date = time.time()
-        return message, author, committer, author_date, commit_date
+        committed_date = time.time()
+        return message, author, authored_date, author_tz_offset, committer, committed_date, committer_tz_offset
 
     def progress(self, old_commit, new_commit):
         # logging
